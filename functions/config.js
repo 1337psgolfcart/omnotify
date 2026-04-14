@@ -93,20 +93,24 @@ function variableSplitting(variable) {
 }
 
 function variableSplittingSensitive(variable) {
+    let value = '';
+
     if (variable.includes(',')) {
         let variableSplit = '';
         let index = 0;
-        let value = '';
+        
         variable.split(',').forEach(nothing => {
             index++;
             value = '*'.repeat(variable.length);
             variableSplit += `${index}: ` + value + '|';
-        });                        
+        });     
+
         return variableSplit;
-    
     } else {
-        return variable;
-    }
+        value = '*'.repeat(variable.length);
+
+        return value;
+    };
 }
 
 export const loadConfig = () => { 
@@ -134,6 +138,7 @@ export const loadConfig = () => {
         let splitValue = '';
         if (!key.includes('OMNOTIFY')) { continue; };
         if (sensitiveKeywords.some(keyword => key.includes(keyword))) {
+            console.log("")
             splitValue = variableSplittingSensitive(value);
             environmentVariables.push(`${key}:|${splitValue}`);
         } else {
@@ -166,6 +171,7 @@ export const loadConfig = () => {
 
     const finalConfig = {
         apiKey: process.env.OMNOTIFY_API_KEY || "",
+        hostIP: process.env.OMNOTIFY_HOST_IP || "0.0.0.0",
         port: parseInt(process.env.OMNOTIFY_PORT) || 11111,
         allowedIPs: process.env.OMNOTIFY_ALLOWED_IPS ? process.env.OMNOTIFY_ALLOWED_IPS.split(',') : [],
         allowedHosts: process.env.OMNOTIFY_ALLOWED_DOMAINS ? process.env.OMNOTIFY_ALLOWED_DOMAINS.split(',') : [],

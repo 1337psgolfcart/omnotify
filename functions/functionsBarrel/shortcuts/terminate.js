@@ -7,6 +7,8 @@ const MESSAGES = {
     3: "E-Mail Server connection failed.",
     4: "Discord Webhook provided is wrong.",
     5: "Webserver Endpoint could not be created!",
+    6: "E-Mail template couldn't be loaded!",
+    7: "Logo couldn't be loaded",
     99: "Kritischer Systemfehler."
 };
 

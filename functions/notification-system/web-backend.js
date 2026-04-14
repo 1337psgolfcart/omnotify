@@ -1,21 +1,21 @@
 import Fastify from 'fastify';
 import { clog, terminate } from '../functionsBarrel/barrel.js'
 import { email, discordWebhook, discordDM, shutdownProviders } from './providers/providers.js'
+import { config } from '../config.js'
 
 let allEndpoints = [];
 let fastify = null
 
 export async function startServer(config) {
     clog.dividerInfo('Creating Web Server')
-    fastify = await fastifyObjectCreation();
+    fastify = await fastifyObjectCreation(config);
     
     clog.dividerInfo('Creating Webserver Endpoints')
     await createEndpoints(config, fastify);
     
     clog.dividerInfo('Starting Webserver')
     try {
-        // host: '0.0.0.0' ist perfekt für Docker später!
-        const address = await fastify.listen({ port: config.port, host: '127.0.0.1' });
+        const address = await fastify.listen({ port: config.port, host: config.hostIP });
         clog.success(`Server ist bereit auf ${address}`);
         return fastify;
     } catch (error) {
@@ -25,7 +25,7 @@ export async function startServer(config) {
     
 }
 
-async function fastifyObjectCreation() {
+async function fastifyObjectCreation(config) {
     clog.info('Creating the Webserver Object')
         fastify = Fastify({
         logger: false 
@@ -33,6 +33,9 @@ async function fastifyObjectCreation() {
 
     fastify.addHook('onRequest', async (request, reply) => {
         clog.web.info(`Incoming: ${request.method} ${request.url} from ${request.ip}`);
+        
+        const allGood = await testApiKey(request, config);
+        if (!allGood) { reply.status(403).send({error: 'Unauthorized'}) }
     });
 
     fastify.addHook('onResponse', async (request, reply) => {
@@ -95,6 +98,19 @@ async function createEndpoints(config, fastify) {
         if (typeof endpoint === 'string') {clog.success(endpoint); };
         if (typeof endpoint === 'function') { await endpoint(); };
     };
+}
+
+async function testApiKey(request) {
+    const requestAPIKey = request.headers['x-api-key'] || "";
+    const apiKey = config.apiKey;
+    const requestIP = request.ip || "";
+
+    if (requestAPIKey !== apiKey) {
+        clog.warning(`${requestIP} tried to make a request with either no, or an invalid, API Key.`);
+        return false
+    }
+
+    return true
 }
 
 export async function shutdownOrder() {

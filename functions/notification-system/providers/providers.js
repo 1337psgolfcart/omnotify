@@ -6,33 +6,30 @@ import { config } from '../../config.js';
 
 export async function shutdownProviders() {
     if (config.providers.includes('discorddm')) {
-    }
+    };
+
     if (config.providers.includes('email')) {
         await shutdownEmail();
-    }
+    };
+
     if (config.providers.includes('discordwebhook')) {
-    }
+    };
 }
 
 async function testRequest(request, reply) {
-    clog.log('Testing Request');
-    const apiKey = config.apiKey;
-    const requestAPIKey = request.headers['x-api-key'] || "";
-    const requestIP = request.ip || "";
+    
+    const requestIP = String(request.ip || "NO IP IN REQUEST? WTF?!");
     const body = request.body || {};
-    const message = body.message;
+    const message = String(body.message || "OMNOTIFY DEFAULT MESSAGE");
+    const title = String(body.title || "OMNOTIFY DEFAULT TITLE");
 
+    const notificationContents = {
+        message: message,
+        title: title,
+        requestIP: requestIP,
+    };
 
-
-    if (requestAPIKey !== apiKey) {
-        clog.warning(`${requestIP} tried to make a request without an API key.`);
-        return false, reply.status(401).send({ error: 'Unauthorized' });
-    }
-    if (!message) {
-        clog.warning(`${requestIP} tried to make a request without a message.`);
-        return false, reply.status(400).send({ error: 'No message provided' });
-    }
-    return true;
+    return notificationContents;
 }
 
 /*
@@ -49,12 +46,11 @@ export async function email(fastify, config) {
     try {
         fastify.post(`/omnotify/email`, async (request, reply) => {
             clog.info('E-Mail Multiple Endpoint called');
-            const requestGood = await testRequest(request, reply);
-            if (!requestGood) return;
-            const { message } = request.body || "";
+            const notificationContents = await testRequest(request, reply);
+            
             for (const address of emailConfig.receiverAddress) {
                 try { 
-                    await sendEmail(address, message);
+                    await sendEmail(address, notificationContents);
                 } catch (error) {
                     clog.error(`Error sending email: ${error.message}`);
                     errors.push('A message has failed sending: ' + error.message);
@@ -85,13 +81,10 @@ export async function email(fastify, config) {
             try {
                 fastify.post(`/omnotify/email/${mailUserCounter}`, async (request, reply) => {
                     clog.info(`E-Mail user${mailUserCounter} Endpoint called`);
-                    const requestGood = await testRequest(request, reply);
-                    if (!requestGood) return;
-
-                    const { message } = request.body || {};
+                    const notificationContents = await testRequest(request, reply);
 
                     try { 
-                        await sendEmail(address, message);
+                        await sendEmail(address, notificationContents);
                         return reply.status(200).send({ message: 'Email sent successfully' });
                     } catch (error) {
                         clog.error(`Error sending email: ${error.message}`);
@@ -131,14 +124,12 @@ export async function discordWebhook(fastify, config) {
     try {
         fastify.post(`/omnotify/discordwebhook`, async (request, reply) => {
             clog.info('Discord Webhook Contact All Endpoint called');
-            const requestGood = await testRequest(request, reply)
-            if (!requestGood) return;
-
-            const { message } = request.body || "";
+            const notificationContents = await testRequest(request, reply)
+            
 
             for (const webhookURL of discordWebhookConfig.url) {
                 try { 
-                    const sent = await sendDiscordWebhook(webhookURL, message);
+                    const sent = await sendDiscordWebhook(webhookURL, notificationContents);
                     if (sent) {
                         clog.success('Discord Webhook fired successfully');
                     } else {
@@ -177,13 +168,11 @@ export async function discordWebhook(fastify, config) {
             try {
                 fastify.post(`/omnotify/discordwebhook/${discordWebhookCounter}`, async (request, reply) => {
                     clog.info(`Discord Webhook webhook${discordWebhookCounter} Endpoint called`);
-                    const requestGood = await testRequest(request, reply);
-                    if (!requestGood) return;
-
-                    const { message } = request.body || {};
+                    const notificationContents = await testRequest(request, reply);
+                    
 
                     try { 
-                        await sendDiscordWebhook(webhookURL, message);
+                        await sendDiscordWebhook(webhookURL, notificationContents);
                         return reply.status(200).send({ message: 'Discord Webhook fired successfully' });
                     } catch (error) {
                         clog.error(`Discord Webhook: ${error.message}`);
@@ -196,7 +185,7 @@ export async function discordWebhook(fastify, config) {
             }
             endpoints.push(`/omnotify/discordwebhook/${discordWebhookCounter} |`);
             let messageWebhookURL = webhookURL.slice(-5);
-             
+
             endpointsString += `Fire Endpoint ending in ${messageWebhookURL}: /omnotify/discordwebhook/${discordWebhookCounter} |`;
             });
     }
